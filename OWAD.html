@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>论文解读: Anomaly Detection in the Open World</title>
+<script>
+// 配置 MathJax
+MathJax = {
+tex: {
+inlineMath: [['\\(', '\\)']],
+displayMath: [['\\[', '\\]']],
+processEscapes: true,
+processEnvironments: true
+},
+options: {
+skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+}
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script"></script>
+<style>
+/* --- 全局与基础样式 --- */
+:root {
+--text-color: #1d1d1f;
+--secondary-text-color: #6e6e73;
+--background-color: #f5f5f7;
+--section-background-color: #ffffff;
+--accent-color: #0071e3;
+--border-color: #d2d2d7;
+--code-bg-color: #f0f0f0;
+--header-height: 60px;
+}
+@media (prefers-color-scheme: dark) {
+        :root {
+            --text-color: #f5f5f7;
+            --secondary-text-color: #86868b;
+            --background-color: #000000;
+            --section-background-color: #1d1d1f;
+            --accent-color: #2997ff;
+            --border-color: #424245;
+            --code-bg-color: #2c2c2e;
+        }
+    }
+
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    html {
+        scroll-behavior: smooth;
+        font-size: 17px;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        background-color: var(--background-color);
+        color: var(--text-color);
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* --- 布局与容器 --- */
+    .container {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 0 20px;
+    }
+
+    main {
+        padding-top: var(--header-height);
+    }
+
+    section {
+        background-color: var(--section-background-color);
+        border-radius: 20px;
+        padding: 60px 40px;
+        margin: 20px auto;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+    }
+    
+    section.visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    /* --- 导航栏 --- */
+    header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background-color: rgba(255, 255, 255, 0.8);
+        backdrop-filter: saturate(180%) blur(20px);
+        border-bottom: 1px solid var(--border-color);
+        z-index: 1000;
+        height: var(--header-height);
+        display: flex;
+        align-items: center;
+    }
+    
+    @media (prefers-color-scheme: dark) {
+         header {
+            background-color: rgba(29, 29, 31, 0.8);
+         }
+    }
+
+    nav {
+        width: 100%;
+    }
+    
+    nav ul {
+        list-style: none;
+        display: flex;
+        justify-content: center;
+        gap: 25px;
+    }
+
+    nav a {
+        text-decoration: none;
+        color: var(--secondary-text-color);
+        font-size: 14px;
+        font-weight: 500;
+        padding: 5px 0;
+        border-bottom: 2px solid transparent;
+        transition: color 0.3s, border-color 0.3s;
+    }
+
+    nav a:hover, nav a.active {
+        color: var(--text-color);
+        border-bottom-color: var(--accent-color);
+    }
+
+    /* --- 标题与文本 --- */
+    h1, h2, h3, h4 {
+        color: var(--text-color);
+        margin-bottom: 20px;
+        font-weight: 600;
+    }
+
+    h1 {
+        font-size: 2.8rem;
+        text-align: center;
+        letter-spacing: -0.02em;
+        margin-bottom: 1rem;
+    }
+
+    .subtitle {
+        font-size: 1.5rem;
+        text-align: center;
+        color: var(--secondary-text-color);
+        margin-bottom: 40px;
+    }
+    
+    h2 {
+        font-size: 2rem;
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 10px;
+        margin-top: 20px;
+    }
+
+    h3 {
+        font-size: 1.4rem;
+        margin-top: 40px;
+    }
+
+    h4 {
+        font-size: 1.2rem;
+        margin-top: 30px;
+        color: var(--secondary-text-color);
+        font-weight: 500;
+    }
+
+    p {
+        margin-bottom: 1.2rem;
+        color: var(--secondary-text-color);
+    }
+
+    a {
+        color: var(--accent-color);
+        text-decoration: none;
+    }
+
+    a:hover {
+        text-decoration: underline;
+    }
+
+    strong {
+        font-weight: 600;
+        color: var(--text-color);
+    }
+    
+    .highlight {
+        background-color: color-mix(in srgb, var(--accent-color) 15%, transparent);
+        padding: 2px 6px;
+        border-radius: 5px;
+    }
+
+    /* --- 列表 --- */
+    ul, ol {
+        padding-left: 25px;
+        margin-bottom: 1.2rem;
+    }
+    
+    ul li, ol li {
+        margin-bottom: 0.8rem;
+        color: var(--secondary-text-color);
+    }
+    
+    ul li::marker {
+        color: var(--accent-color);
+    }
+
+    /* --- 代码与公式 --- */
+    code, .code-inline {
+        background-color: var(--code-bg-color);
+        padding: 0.2em 0.4em;
+        margin: 0;
+        font-size: 85%;
+        border-radius: 6px;
+        font-family: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", monospace;
+    }
+
+    pre {
+        background-color: var(--code-bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 20px;
+        overflow-x: auto;
+        margin: 20px 0;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    /* --- 表格 --- */
+    .table-wrapper {
+        overflow-x: auto;
+        margin: 30px 0;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 15px;
+    }
+
+    th, td {
+        border: 1px solid var(--border-color);
+        padding: 12px 15px;
+        text-align: left;
+    }
+
+    th {
+        background-color: var(--code-bg-color);
+        font-weight: 600;
+        text-align: center;
+    }
+    
+    td {
+       color: var(--secondary-text-color);
+    }
+
+    td:first-child, th:first-child {
+        font-weight: 500;
+        color: var(--text-color);
+    }
+    
+    tr:nth-child(even) {
+        background-color: var(--code-bg-color);
+    }
+
+    /* --- 占位符 --- */
+    .placeholder {
+        width: 100%;
+        background-color: var(--code-bg-color);
+        border: 2px dashed var(--border-color);
+        border-radius: 12px;
+        padding: 40px;
+        text-align: center;
+        color: var(--secondary-text-color);
+        margin: 30px 0;
+        font-style: italic;
+    }
+
+    /* --- Reviewer Section --- */
+    .reviewer-section {
+        border-left: 4px solid var(--accent-color);
+        padding-left: 20px;
+        margin-top: 30px;
+    }
+    
+    .reviewer-section h3 {
+         border-bottom: none;
+         margin-top: 0;
+    }
+
+    .reviewer-section .pros, .reviewer-section .cons, .reviewer-section .future {
+        margin-top: 20px;
+    }
+    
+    .reviewer-section .pros::before { content: '✅ '; }
+    .reviewer-section .cons::before { content: '❌ '; }
+    .reviewer-section .future::before { content: '🚀 '; }
+
+</style>
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <ul>
+                <li><a href="#motivation">研究动机</a></li>
+                <li><a href="#modeling">数学建模</a></li>
+                <li><a href="#experiments">实验设计</a></li>
+                <li><a href="#results">实验结果</a></li>
+                <li><a href="#review">我的评论</a></li>
+            </ul>
+        </nav>
+    </header>
+    
+    <main class="container">
+        
+        <div style="padding: 80px 0; text-align: center;">
+             <h1>开放世界中的异常检测</h1>
+             <p class="subtitle">论文精读: Anomaly Detection in the Open World: Normality Shift Detection, Explanation, and Adaptation</p>
+        </div>
+    
+        <section id="motivation">
+            <h2>研究动机</h2>
+            <p>
+                在网络安全等领域，基于机器学习的异常检测系统已成为关键防御手段。这类系统通常建立在一个“封闭世界”假设之上：即训练数据与部署环境中的数据分布（distribution）是<strong>独立且同分布</strong>的 (i.i.d.)。然而，真实世界是“开放”的，系统环境、用户行为、网络协议等都在不断演变，导致数据分布发生变化，这种现象被称为<strong>概念漂移 (Concept Drift)</strong>。
+            </p>
+            <p>
+                传统的异常检测，特别是仅使用正常数据进行训练的<strong>零正例学习 (zero-positive learning)</strong>，虽然能有效识别未知的“异常”行为（如零日攻击），但当“<strong>正常</strong>”行为的模式发生变化时（即<strong>常态漂移, Normality Shift</strong>），系统会面临严峻挑战。例如，一次系统更新或新设备的加入，都可能引入新的、合法的行为模式。如果模型不适应这种变化，就会产生大量的<strong>误报 (False Positives)</strong>，淹没真正的安全警报，严重影响系统的可用性和可信度。
+            </p>
+            <p>
+                现有研究大多关注“异常”行为的漂移，或是在有监督学习的框架下解决概念漂移问题，而对于零正例学习场景下的<strong>常态漂移</strong>问题，却鲜有探索。这正是本文要解决的核心痛点。
+            </p>
+            <h3>核心贡献</h3>
+            <ul>
+                <li><strong>首次探索常态漂移问题</strong>：本文是第一个系统性研究深度学习异常检测中常态漂移问题的团队，并提出了一个通用的框架——<strong>OWAD</strong> (Open-World Anomaly Detection)。</li>
+                <li><strong>提出通用框架 OWAD</strong>：该框架包含三大核心模块（检测、解释、自适应），旨在以无监督的方式检测常态漂移，用更少的标注开销解释漂移原因，并高效地使模型适应新常态。</li>
+                <li><strong>创新的技术组件</strong>：
+                    <ul>
+                        <li><strong class="highlight">Calibrator</strong>: 一种无监督的校准器，使模型输出具有概率意义，为统计检测奠定基础。</li>
+                        <li><strong class="highlight">Explainer</strong>: 一个基于优化的解释器，以分布的视角（distribution-level）找出导致漂移的关键样本。</li>
+                        <li><strong class="highlight">Distributional-level Adaptation</strong>: 一种兼顾“遗忘旧知识”与“泛化新知识”的自适应方法。</li>
+                    </ul>
+                </li>
+                <li><strong>详尽的实验验证</strong>：在三个真实的、长期的安全数据集上验证了 OWAD 的有效性，并进行了真实世界的初步部署，展示了其实用价值。</li>
+            </ul>
+        </section>
+    
+        <section id="modeling">
+            <h2>数学表示与建模</h2>
+            <p>
+                OWAD 框架的核心思想是：通过比较模型在“旧”的正常数据（控制集）和“新”的流入数据（处理集）上的输出分布，来检测、解释并适应常态的变化。
+            </p>
+    
+            <h3>重要符号定义 (Table II)</h3>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>符号</th>
+                            <th>描述</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>\(x^c, x^t\)</td>
+                            <td>控制集（旧）和处理集（新）的特征/样本。</td>
+                        </tr>
+                        <tr>
+                            <td>\(\{X_N, X_A\}\)</td>
+                            <td>正常（Normal）和异常（Abnormal）的特征空间。</td>
+                        </tr>
+                        <tr>
+                            <td>\(f(\cdot), T\)</td>
+                            <td>异常检测模型及其检测阈值。</td>
+                        </tr>
+                        <tr>
+                            <td>\(C(\cdot)\)</td>
+                            <td>模型输出的校准器（Calibrator）。</td>
+                        </tr>
+                        <tr>
+                            <td>\(N_c, N_t\)</td>
+                            <td>控制集和处理集的样本数量。</td>
+                        </tr>
+                        <tr>
+                            <td>\(K, M\)</td>
+                            <td>用于漂移检测和解释的直方图的箱数（bins）。</td>
+                        </tr>
+                        <tr>
+                            <td>\(m^c, m^t\)</td>
+                            <td>对应于 \(x^c\) 和 \(x^t\) 的掩码向量，用于漂移解释和自适应。</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+    
+            <h3>核心定义</h3>
+            <p><strong>定义 1 (常态漂移 NORMALITY SHIFT)</strong>: 常态漂移被定义为正常数据分布的变化。形式上，给定特征空间 \(X = \{X_A, X_N\}\)，常态漂移是联合概率 \(P(x \in X_N, y)\) 的变化，可以分解为 \(P(x) \times P(y|x \in X_N)\)。本文主要关注后者，即 <strong>actual shift</strong>，因为它直接影响模型性能。</p>
+            <p>由于直接观测 \(P(y|x \in X_N)\) 不可行，本文巧妙地将其转化为检测模型<strong>学习到的常态分布</strong>的变化，即比较模型在控制集 (\(X^c\)) 和处理集 (\(X^t\)) 上的输出概率分布 \(P(f(x)|x \in X_N^c)\) 和 \(P(f(x^t)|x^t \in X_N^t)\)。</p>
+    
+            <h3>OWAD 框架四大模块</h3>
+            <img src="image.png" alt="OWAD 框架四大模块" style="width: 100%; height: auto;">
+            <p>上图展示了 OWAD 的完整流程，分为四个关键步骤：</p>
+            
+            <h4>1. 输出校准 (Output Calibration)</h4>
+            <p><strong>动机</strong>：原始深度学习模型的输出（如重构误差）通常是“欠校准”的，其数值大小只表示相对关系，不具备真实的概率意义（例如，输出0.99和0.92都代表“很正常”，但无法量化）。这给后续的统计分布比较带来了困难。</p>
+            <p><strong>方法</strong>：本文设计了一个无监督的校准器 <strong>Calibrator</strong> \(C(\cdot)\)。对于“常态置信度”模型（输出值越大越正常），校准后的输出被定义为该样本作为阈值时的<strong>假阳性率 (False Positive Rate, FPR)</strong>。</p>
+            <p><strong>定义 3 (完美校准)</strong>：一个完美的校准器 \(C(f(x))\) 应该满足：</p>
+            \[ C(f(x)) = \text{FPR}_{T=f(x)}(X_N), \quad \forall x \in X_N \]
+            <p>其中 \(X_N\) 是用于校准的纯正常数据集。这意味着，如果一个校准后输出为0.8，那么在所有正常样本中，有80%的样本输出值比它低。为了实现这一目标，本文使用<strong>保序回归 (Isotonic Regression)</strong> 拟合一个分段线性函数（PWLF），它天然满足单调性要求，且实现简单。</p>
+    
+            <h4>2. 漂移检测 (Shift Detection)</h4>
+            <p><strong>动机</strong>：在获得具有概率意义的校准输出后，需要一个统计上可靠的方法来判断两个分布（来自控制集 \(x^c\) 和处理集 \(x^t\)）是否发生了显著变化。</p>
+            <p><strong>方法</strong>：
+                <ol>
+                    <li>将校准后的输出 \(C(f(x^c))\) 和 \(C(f(x^t))\) 转换为含有 \(K\) 个箱的离散直方图。</li>
+                    <li>使用<strong>置换检验 (Permutation Test)</strong>，这是一种非参数检验方法，对数据分布没有太多假设，非常适用于复杂的安全场景。</li>
+                    <li>检验统计量 (test statistic) 采用<strong>Kullback-Leibler (KL) 散度</strong>来衡量两个离散分布的差异。</li>
+                </ol>
+            </p>
+            <p>通过计算 p-value 来判断漂移是否发生。如果 p-value 小于一个阈值（如0.05），则认为发生了显著的常态漂移。</p>
+    
+            <h4>3. 漂移解释 (Shift Explanation)</h4>
+            <p><strong>动机</strong>：仅仅知道“发生了漂移”是不够的。安全运维人员需要知道“<strong>哪里</strong>发生了漂移”，即哪些旧的正常行为不再正常，哪些新的行为应该被视为正常。这有助于理解漂移并进行精准的模型自适应。</p>
+            <p><strong>方法</strong>：本文将此问题建模为一个优化问题。目标是找到两个掩码向量 \(m^c \in^{N_c}\) 和 \(m^t \in^{N_t}\)，它们分别指示控制集和处理集中的每个样本对漂移的“贡献度”。</p>
+            <p><strong>优化目标</strong>：</p>
+            \[ \min_{m^c, m^t} L_{acc} + \lambda_1 L_{lab} + \lambda_2 L_{det} \]
+            <p>这个目标函数由三部分组成：</p>
+            <ul>
+                <li>\(\mathbf{L_{acc}}\) (Accuracy Term): 准确性项。要求用<strong>最少</strong>的旧样本(\(m^c\))和新样本(\(m^t\))来“重构”出处理集 \(x^t\) 的分布。这通过最小化重构分布与真实处理集分布之间的 KL 散度实现。直观上，就是找到那些最具代表性的、能解释分布变化的样本。
+                \[ L_{acc} = D_{KL} \left( H_M(p^t) \parallel H_M((m^c \odot p^c) \oplus (m^t \odot p^t)) \right) \]
+                </li>
+                <li>\(\mathbf{L_{lab}}\) (Labeling Overhead Term): 标注开销项。因为新样本 \(x^t\) 需要人工标注以过滤异常，所以我们希望选出的新样本 \(m^t\) 尽可能少。同时，旧样本 \(x^c\) 已经是标注过的正常样本，我们希望尽可能多地复用它们（即 \(m^c\) 尽可能大）。
+                \[ L_{lab} \propto \lVert 1 - m^c \rVert_1 + \lVert m^t \rVert_1 \]
+                </li>
+                <li>\(\mathbf{L_{det}}\) (Determinism Term): 确定性项。为了让选择结果清晰明了，希望掩码向量中的值都趋近于0或1，而不是模糊的中间值。这通过最小化其信息熵实现。
+                \[ L_{det} = \mathbb{E}[-m \log m - (1-m) \log (1-m)] \]
+                </li>
+            </ul>
+            <p>通过梯度下降求解这个优化问题，最终得到高权重的样本，它们就是导致常态漂移的“元凶”。</p>
+    
+            <h4>4. 模型自适应 (Model Adaptation)</h4>
+            <p><strong>动机</strong>：在识别出导致漂移的样本后，需要更新模型以适应新的常态分布。但更新过程面临一个经典挑战：<strong>灾难性遗忘 (Catastrophic Forgetting)</strong>，即模型在学习新知识时忘记了旧的、但仍然有效的知识。</p>
+            <p><strong>方法</strong>：本文借鉴了 lifelong learning 的思想，在更新模型时加入一个正则化项。新的损失函数为：</p>
+            \[ L_{\theta^*} = L_0 + \lambda_3 \sum_i \Omega_i (\theta_i - \theta_i^*)^2 \]
+            <ul>
+                <li>\(L_0\) 是原始的模型损失函数。</li>
+                <li>第二项是正则化项，其中 \(\theta_i\) 是模型参数，\(\theta_i^*\) 是旧模型参数。</li>
+                <li>关键在于 \(\mathbf{\Omega_i}\)，它代表了第 \(i\) 个参数对“<strong>旧的、且仍然有效的常态知识</strong>”的重要性。</li>
+            </ul>
+            <p><strong>如何计算 \(\Omega_i\)？</strong> 本文创新地使用上一步 Explainer 得到的掩码向量 \(m^c\) 来计算 \(\Omega_i\)。具体来说，\(\Omega_i\) 是模型在<strong>加权后</strong>的旧控制集样本（权重为 \(m^c\)）上损失函数的梯度平方的期望。
+            \[ \Omega_i = \mathbb{E}_{x^c \in X^c} \left[ m^c \cdot \left( \frac{\partial l_0(x^c)}{\partial \theta_i} \right)^2 \right] \]
+            </p>
+            <p>
+                直观上，如果一个参数对于那些被 Explainer 认为“仍然有效”的旧常态样本（\(m^c\) 值高）很重要，那么它的 \(\Omega_i\) 就会很大，在模型更新时就会被“重点保护”，从而防止遗忘。反之，对于那些“已过时”的旧知识（\(m^c\) 值低），模型可以更大胆地去更新相关参数，以学习新常态。
+            </p>
+        </section>
+    
+        <section id="experiments">
+            <h2>实验方法与实验设计</h2>
+            <p>
+                为了全面评估 OWAD 的性能，论文在三个具有代表性的安全应用场景中进行了长期且真实的实验。
+            </p>
+    
+            <h3>数据集与应用场景</h3>
+            <ol>
+                <li><strong>网络入侵检测 (NID)</strong>:
+                    <ul>
+                        <li><strong>数据集</strong>: Kyoto 2006+，一个包含从2006年到2015年长达10年的真实网络流量数据，由 Anoshift 基准测试提供。</li>
+                        <li><strong>基础模型</strong>: KitNET，一个基于自编码器集成的异常检测模型。</li>
+                    </ul>
+                </li>
+                <li><strong>日志异常检测 (LogAD)</strong>:
+                    <ul>
+                        <li><strong>数据集</strong>: BGL，一个包含214天的大型超级计算机系统日志，具有完整的标注。</li>
+                        <li><strong>基础模型</strong>: DeepLog，一个基于 LSTM 的日志序列异常检测模型。</li>
+                    </ul>
+                </li>
+                <li><strong>高级持续性威胁检测 (APT)</strong>:
+                    <ul>
+                        <li><strong>数据集</strong>: LANL-CMSCSE，一个包含58天企业内部网络认证日志的数据集。</li>
+                        <li><strong>基础模型</strong>: GLGV，一个基于图嵌入的异常检测模型。</li>
+                    </ul>
+                </li>
+            </ol>
+            <p>此外，论文还在一个真实的<strong>SCADA（电力监控系统）</strong>环境中进行了初步部署和测试。</p>
+            
+            <h3>实验设置 (Data Split and Split)</h3>
+            <p>实验模拟了真实的在线监控场景，如 Figure 3 所示：</p>
+            <div class="placeholder">[Image Placeholder: Figure 3 from page 8 - Split of training, test and validation data.]</div>
+            <ul>
+                <li><strong>@T0 (时刻0)</strong>: 使用初始的纯净正常数据训练基准模型，并在此时的测试集上评估其初始性能。</li>
+                <li><strong>@T1, @T2, ..., @TN</strong>: 随着时间的推移，周期性地收集新的数据。在每个时间点，收集到的数据被随机分为<strong>验证集 (validation set)</strong>和<strong>测试集 (test set)</strong>。</li>
+                <li><strong>验证集</strong>用于 OWAD 及其他基线方法进行漂移检测和模型自适应。</li>
+                <li><strong>测试集</strong>用于评估自适应之后模型的性能，以衡量其应对漂移的效果。</li>
+            </ul>
+    
+            <h3>对比基线 (Baseline Approaches)</h3>
+            <p>OWAD 与多个有代表性的方法进行了比较：</p>
+            <ul>
+                <li><strong>No-Update</strong>: 不做任何处理的原始模型，作为性能下限。</li>
+                <li><strong>Retrain</strong>: 将新旧数据混合在一起，完全重新训练模型。这是一种常见但消耗巨大的做法。</li>
+                <li><strong>UNLEARN</strong>: 一个为异常检测设计的 lifelong learning 方法，目标与 OWAD 类似，但它没有漂移检测和解释机制。</li>
+                <li><strong>CADE</strong> 和 <strong>TRANS</strong>: 两个 SOTA 的概念漂移处理方法，但它们最初是为有监督学习设计的。论文对它们进行了调整以适应零正例学习场景。</li>
+            </ul>
+            <p>对于需要选择样本进行标注和更新的基线（如 Retrain, UNLEARN），论文使用了<strong>不确定性采样 (uncertainty sampling)</strong> 作为公平的对比。
+            </p>
+    
+            <h3>评估指标 (Metrics)</h3>
+            <ul>
+                <li><strong>NID 和 APT</strong>: 主要使用 <strong>AUC (Area Under the ROC Curve)</strong>，因为它对检测阈值的选择不敏感，能更全面地反映模型的整体性能。同时辅以 TPR/FPR。</li>
+                <li><strong>LogAD</strong>: 使用 <strong>F-Score</strong>，与原始 DeepLog 论文的评估方式保持一致。</li>
+            </ul>
+        </section>
+    
+        <section id="results">
+            <h2>实验结果与核心结论</h2>
+            
+            <h3>端到端性能对比</h3>
+            <p>Figure 4 展示了在三种应用下，OWAD 与各基线在单次自适应和多次自适应场景下的端到端性能对比。</p>
+            <div class="placeholder">[Image Placeholder: Figure 4 from page 9 - End-to-end performance comparison.]</div>
+            
+            <h4>关键发现：</h4>
+            <ol>
+                <li><strong>OWAD 性能全面领先</strong>：在所有场景中，OWAD (粉色线) 的性能（AUC 或 F-Score）都显著优于其他基线方法，尤其是在标注预算有限的情况下。这表明 OWAD 能够以更低的成本实现更有效的自适应。</li>
+                <li><strong>鲁棒性强，能抵抗持续漂移</strong>：在 Figure 4(a-c) 的单次自适应实验中，OWAD 的性能在后续的时间点 (如 @T3, @T4) 下降得最慢。这说明 OWAD 的自适应不仅在当前有效，而且能让模型更好地应对未来的漂移，具有更强的鲁棒性。</li>
+                <li><strong>标注效率极高</strong>：从 Figure 4(d-f) 可以看出，OWAD 仅需少量标注（NID 需10%，LogAD 需30%，APT 需5%）就能达到甚至超过其他方法在100%标注下的性能。例如，在 NID 任务中，Retrain 和 UNLEARN 在标注量低于 20% 时性能甚至不如 No-Update，而 OWAD 在 5% 的标注量下就已经表现优异。</li>
+                <li><strong>早适应优于晚适应</strong>：一个有趣的发现是，越早进行自适应，模型对后续漂移的抵抗能力越强（例如，在@T1时刻适应的效果普遍好于在@T2时刻适应）。这启发我们应尽早、尽快地检测和处理常态漂移。</li>
+            </ol>
+    
+            <h3>误报/漏报 (FP/FN) 案例分析</h3>
+            <p>Table III 以 LogAD 场景为例，详细比较了不同方法在单次自适应后误报（FP）和漏报（FN）的数量。</p>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>方法</th>
+                            <th colspan="3"># FPs (越低越好)</th>
+                            <th colspan="3"># FNs (越低越好)</th>
+                            <th colspan="3">F-Score (越高越好)</th>
+                        </tr>
+                        <tr>
+                            <th></th>
+                            <th>@T1</th>
+                            <th>@T2</th>
+                            <th>@T3</th>
+                            <th>@T1</th>
+                            <th>@T2</th>
+                            <th>@T3</th>
+                            <th>@T1</th>
+                            <th>@T2</th>
+                            <th>@T3</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>No-Update</td>
+                            <td>2404</td>
+                            <td>903</td>
+                            <td>6585</td>
+                            <td>135</td>
+                            <td>34</td>
+                            <td>39</td>
+                            <td>0.74</td>
+                            <td>0.66</td>
+                            <td>0.42</td>
+                        </tr>
+                        <tr>
+                            <td>Retrain</td>
+                            <td>2238</td>
+                            <td>933</td>
+                            <td>6213</td>
+                            <td>233</td>
+                            <td>32</td>
+                            <td>28</td>
+                            <td>0.74</td>
+                            <td>0.66</td>
+                            <td>0.43</td>
+                        </tr>
+                        <tr>
+                            <td>UNLEARN</td>
+                            <td>3350</td>
+                            <td>1293</td>
+                            <td>7369</td>
+                            <td>105</td>
+                            <td>27</td>
+                            <td>26</td>
+                            <td>0.68</td>
+                            <td>0.59</td>
+                            <td>0.39</td>
+                        </tr>
+                        <tr>
+                            <td>TRANS</td>
+                            <td>1508</td>
+                            <td>849</td>
+                            <td>3237</td>
+                            <td>552</td>
+                            <td>197</td>
+                            <td>106</td>
+                            <td>0.76</td>
+                            <td>0.59</td>
+                            <td>0.58</td>
+                        </tr>
+                        <tr style="background-color: var(--code-bg-color); font-weight: bold;">
+                            <td><strong>OWAD</strong></td>
+                            <td><strong>1491</strong></td>
+                            <td><strong>701</strong></td>
+                            <td><strong>2519</strong></td>
+                            <td><strong>120</strong></td>
+                            <td><strong>34</strong></td>
+                            <td><strong>35</strong></td>
+                            <td><strong>0.82</strong></td>
+                            <td><strong>0.72</strong></td>
+                            <td><strong>0.65</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p><strong>结论</strong>：OWAD 是<strong>唯一</strong>能够同时显著降低误报（FP）和漏报（FN）的方法。其他方法（如 UNLEARN）虽然可能降低了FN，但却以FP急剧增加为代价，这在实际应用中是不可接受的。这再次证明了 OWAD 分布式解释和自适应方法的优越性，它能更精准地理解和修复模型。</p>
+    
+            <h3>消融实验与案例研究</h3>
+            <ul>
+                <li><strong>组件有效性</strong>：论文通过消融实验证明了 OWAD 每个模块（Calibrator, Explainer, Adaptation）的有效性。例如，经过 Calibrator 校准后的输出能更准确地检测到漂移（Table IV），而基于 Explainer 选择的样本比基于不确定性采样或 FP/FN 的样本能带来更好的自适应效果（Table V, VI）。</li>
+                <li><strong>案例分析</strong>：通过 OWAD Explainer 的解释结果，论文深入分析了三个数据集中常态漂移的具体原因。
+                    <ul>
+                        <li>在 <strong>NID</strong> 中，漂移表现为特定 IDS 警报类型和 UDP 流量比例的剧烈变化。</li>
+                        <li>在 <strong>LogAD</strong> 中，漂移主要由新日志类型的出现、旧日志的消失以及日志序列顺序的改变引起。</li>
+                        <li>在 <strong>APT</strong> 中，漂移则体现为用户正常登录行为模式（如访问的目标主机数量）的改变。</li>
+                    </ul>
+                </li>
+            </ul>
+        </section>
+    
+        <section id="review">
+            <h2>我的评论 (Reviewer's Take)</h2>
+            <div class="reviewer-section">
+                <p>
+                    作为一篇发表在顶级安全会议 NDSS 2023 上的论文，这项工作对“开放世界中的异常检测”这一重要议题给出了一个系统、深刻且实用的解决方案。它不仅精准地识别出了工业界的一个核心痛点，还提供了一套设计精巧、理论与实践并重的框架。
+                </p>
+    
+                <div class="pros">
+                    <h3>优势 (Strengths)</h3>
+                    <ul>
+                        <li><strong>问题切入点精准</strong>：首次将研究焦点从传统的“异常漂移”转向更为棘手且普遍的“常态漂移”，具有很强的现实意义和前瞻性。</li>
+                        <li><strong>框架设计优雅</strong>：OWAD 框架的“检测-解释-自适应”三部曲逻辑清晰、环环相扣。特别是将问题从样本层面（sample-level）提升到分布层面（distribution-level）进行分析，是其成功的关键，使得解释和自适应更为精准和高效。</li>
+                        <li><strong>技术创新实用</strong>：无监督的 Calibrator 和基于优化的 Explainer 设计得非常巧妙，有效解决了在零正例场景下难以进行统计比较和精准定位漂移源的难题。</li>
+                        <li><strong>实验坚实可信</strong>：使用了多个真实的、时间跨度很长的安全数据集进行评估，并给出了真实世界的部署案例，这使得实验结论非常可靠，远超许多仅在模拟或短期数据集上进行测试的工作。</li>
+                    </ul>
+                </div>
+    
+                <div class="cons">
+                    <h3>不足 (Weaknesses)</h3>
+                    <ul>
+                        <li><strong>模型依赖性</strong>：对“常态”的定义和检测仍然依赖于基础异常检测模型 \(f(\cdot)\) 的输出。如果基础模型本身对某些常态模式的学习就有偏差，OWAD 框架可能难以完全纠正，甚至会强化这种偏差。</li>
+                        <li><strong>超参数敏感性</strong>：Explainer 和 Adaptation 模块引入了多个超参数（如 \(\lambda_1, \lambda_2, \lambda_3\)），虽然论文在附录中讨论了其不敏感性，但在全新的、更多样化的场景中，如何系统性地、自动化地配置这些参数仍然是一个挑战。</li>
+                        <li><strong>解释的深度</strong>：目前的 Explainer 能回答“哪些样本导致了漂移”，但还不能自动回答“为什么这些样本的行为模式发生了变化”的根因（root cause）问题，这仍然需要领域专家的介入。</li>
+                    </ul>
+                </div>
+    
+                <div class="future">
+                    <h3>未来方向 (Future Directions)</h3>
+                    <ul>
+                        <li><strong>自动化与自适应调参</strong>：研究如何根据漂移的类型或强度，自动调整 Explainer 和 Adaptation 中的超参数，进一步降低人工配置成本。</li>
+                        <li><strong>融合因果推断</strong>：引入因果推断技术，尝试从特征或事件的因果关系层面挖掘常态漂移的根本原因，提供更深层次、更具可操作性的解释。</li>
+                        <li><strong>主动学习与漂移预测</strong>：研究如何从“被动适应”走向“主动预测”，通过分析漂移的趋势来预测未来可能发生的常态变化，提前对模型进行加固。</li>
+                        <li><strong>对抗性常态漂移</strong>：探索在有对抗性攻击者存在的情况下，如何应对被恶意操控的、旨在欺骗检测系统的“伪常态漂移”。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+    
+    </main>
+    
+    <script>
+        // JS for interactive elements
+        document.addEventListener('DOMContentLoaded', () => {
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('header nav a');
+    
+            const observer = new IntersectionObserver(entries => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                    }
+                });
+            }, {
+                threshold: 0.1
+            });
+    
+            sections.forEach(section => {
+                observer.observe(section);
+            });
+    
+            // Scroll-spy for navigation
+            const onScroll = () => {
+                let current = '';
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    if (pageYOffset >= sectionTop - 60 - 100) {
+                        current = section.getAttribute('id');
+                    }
+                });
+                
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href').substring(1) === current) {
+                        link.classList.add('active');
+                    }
+                });
+            };
+            
+            window.addEventListener('scroll', onScroll);
+        });
+    </script>
+</body>
+</html>
