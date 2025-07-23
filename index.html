@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Paper Reading Notes Overview</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f9fafb;
+      padding: 2rem;
+    }
+
+    h1 {
+      text-align: center;
+      color: #1f2937;
+      margin-bottom: 2rem;
+    }
+
+    .table {
+      width: 100%;
+      max-width: 1000px;
+      margin: 0 auto;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 1rem;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f3f4f6;
+      color: #374151;
+    }
+
+    a {
+      color: #3b82f6;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 768px) {
+      .table, thead, tbody, th, td, tr {
+        display: block;
+      }
+
+      th {
+        position: absolute;
+        left: -9999px;
+      }
+
+      td {
+        border: none;
+        position: relative;
+        padding-left: 50%;
+        margin-bottom: 1rem;
+      }
+
+      td:before {
+        content: attr(data-label);
+        position: absolute;
+        left: 1rem;
+        font-weight: bold;
+        color: #6b7280;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>📚 Paper Reading Notes</h1>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Author(s)</th>
+        <th>Year</th>
+        <th>Domain</th>
+        <th>Note</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td data-label="Title">Anomaly Detection in the Open World</td>
+        <td data-label="Author(s)">X. Zhang et al.</td>
+        <td data-label="Year">2023</td>
+        <td data-label="Domain">Anomaly Detection</td>
+        <td data-label="Note"><a href="./OWAD.html">View</a></td>
+      </tr>
+      <!-- 你可以继续添加更多条目 -->
+    </tbody>
+  </table>
+</body>
+</html>
